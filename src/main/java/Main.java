@@ -1,60 +1,86 @@
-import java.sql.*;
-import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.Map;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import edu.uniandes.ecos.ase.calculo.CalculoSimpsonRule;
+import edu.uniandes.ecos.ase.dto.DatoEntradaDTO;
+import edu.uniandes.ecos.ase.utilidad.LeerDatosFuenteExterna;
+import java.util.ArrayList;
+import java.util.List;
 
 import static spark.Spark.*;
-import spark.template.freemarker.FreeMarkerEngine;
-import spark.ModelAndView;
 import static spark.Spark.get;
-
-import com.heroku.sdk.jdbc.DatabaseUrl;
 
 public class Main {
 
-  public static void main(String[] args) {
+    public static void main(String[] args) {
 
-    port(Integer.valueOf(System.getenv("PORT")));
-    staticFileLocation("/public");
+        port(Integer.valueOf(System.getenv("PORT")));
+        staticFileLocation("/public");
 
-    get("/hello", (req, res) -> "Hello World");
+        get("/calcularReglaSimpson", (req, res) -> {
+            String retorno;
+            CalculoSimpsonRule calculoSimpsonRule = new CalculoSimpsonRule();
 
-    get("/", (request, response) -> {
-            Map<String, Object> attributes = new HashMap<>();
-            attributes.put("message", "Hello World!");
+            List<DatoEntradaDTO> listaResultado = new ArrayList<>();
 
-            return new ModelAndView(attributes, "index.ftl");
-        }, new FreeMarkerEngine());
+            //Caso de prueba 1
+            DatoEntradaDTO datoEntradaDTOUno = new DatoEntradaDTO();
+            datoEntradaDTOUno = LeerDatosFuenteExterna.leerArchivoPlanoSeparacionComa("src/main/resources/archivo/CASO_PRUEBA_UNO.txt");
+            datoEntradaDTOUno.setP(calculoSimpsonRule.calcularSimpsonRule(datoEntradaDTOUno));
 
-    get("/db", (req, res) -> {
-      Connection connection = null;
-      Map<String, Object> attributes = new HashMap<>();
-      try {
-        connection = DatabaseUrl.extract().getConnection();
+            //Caso de prueba 2
+            DatoEntradaDTO datoEntradaDTODos = new DatoEntradaDTO();
+            datoEntradaDTODos = LeerDatosFuenteExterna.leerArchivoPlanoSeparacionComa("src/main/resources/archivo/CASO_PRUEBA_DOS.txt");
+            datoEntradaDTODos.setP(calculoSimpsonRule.calcularSimpsonRule(datoEntradaDTODos));
 
-        Statement stmt = connection.createStatement();
-        stmt.executeUpdate("CREATE TABLE IF NOT EXISTS ticks (tick timestamp)");
-        stmt.executeUpdate("INSERT INTO ticks VALUES (now())");
-        ResultSet rs = stmt.executeQuery("SELECT tick FROM ticks");
+            //Caso de prueba 3
+            DatoEntradaDTO datoEntradaDTOTres = new DatoEntradaDTO();
+            datoEntradaDTOTres = LeerDatosFuenteExterna.leerArchivoPlanoSeparacionComa("src/main/resources/archivo/CASO_PRUEBA_TRES.txt");
+            datoEntradaDTOTres.setP(calculoSimpsonRule.calcularSimpsonRule(datoEntradaDTOTres));
 
-        ArrayList<String> output = new ArrayList<String>();
-        while (rs.next()) {
-          output.add( "Read from DB: " + rs.getTimestamp("tick"));
-        }
+            listaResultado.add(datoEntradaDTOUno);
+            listaResultado.add(datoEntradaDTODos);
+            listaResultado.add(datoEntradaDTOTres);
 
-        attributes.put("results", output);
-        return new ModelAndView(attributes, "db.ftl");
-      } catch (Exception e) {
-        attributes.put("message", "There was an error: " + e);
-        return new ModelAndView(attributes, "error.ftl");
-      } finally {
-        if (connection != null) try{connection.close();} catch(SQLException e){}
-      }
-    }, new FreeMarkerEngine());
+            retorno = "<!DOCTYPE html>"
+                    + "<html>"
+                    + "<head>"
+                    + "<style>"
+                    + "table, th, td {"
+                    + "border: 1px solid black;"
+                    + "border-collapse: collapse;"
+                    + "}"
+                    + "th, td {"
+                    + "padding: 5px;"
+                    + "text-align: left;"
+                    + "}"
+                    + "table#t01 {"
+                    + "width: 100%;    "
+                    + "background-color: #A9BCF5;"
+                    + "}"
+                    + "</style>"
+                    + "</head>"
+                    + "<body>"
+                    + "<table id=\"t01\">"
+                    + "<tbody>"
+                    + "<tr>"
+                    + "<th>x</th>"
+                    + "<th>dof</th>"
+                    + "<th>p</th>"
+                    + "</tr>";
+            int i = 1;
+            for (DatoEntradaDTO dto : listaResultado) {
+                retorno += "<tr>"
+                        + "<td>" + dto.getX() + i + "</td>"
+                        + "<td>" + dto.getDof() + "</td>"
+                        + "<td>" + dto.getP() + "</td>"
+                        + "</tr>";
+                i++;
+            }
+            retorno += "</tbody>"
+                    + "</table>"
+                    + "</body>"
+                    + "</html>";
 
-  }
-
+            return retorno;
+        });
+    }
 }
